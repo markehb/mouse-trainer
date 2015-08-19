@@ -1,0 +1,78 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<title>Clicker</title>
+<style>
+</style>
+<script type="text/javascript">
+<!--
+
+//clicks per sec, store, ave, overall ave, reset ave, overall max, burst max
+
+var clicksInSec=0;
+var clicksInSecLegacy=0;
+var clicksInSecPeak=0;
+
+function peakCPS(currentCPS) {
+	// works out for last 2 seconds if(((currentCPS+clicksInSecLegacy)/2)>clicksInSecPeak){
+	if(currentCPS>clicksInSecPeak){
+		clicksInSecPeak=currentCPS;
+		document.getElementById('peakTotAveCPS').innerHTML=currentCPS;	
+	}
+}
+
+// work out how many clicks in last second
+function lastCPS() {
+	document.getElementById('lastCPS').innerHTML=clicksInSec;
+	peakCPS(clicksInSec);
+	//clicksInSecLegacy = clicksInSec;
+	clicksInSec=0;
+}
+
+//timer
+var theTimer = self.setInterval(function() {
+	var timer = parseInt(document.getElementById('time').innerHTML);
+	if(timer > 19){ // stop after 20 secs, -1 secs cos of the extra time it will loop...
+		clearInterval(theTimer);
+		// disable clicker
+		document.getElementById('clickMe').disabled = true;
+	} else {
+		// increment timer
+		document.getElementById('time').innerHTML=timer + 1;
+		lastCPS()
+	}
+}, 1000);
+
+
+window.onload = function(){
+
+	var clickItem = document.getElementById('clickMe'); // gets the element
+
+	clickItem.onclick = function() {
+	
+		// get, then increment click count
+		var clickCount = parseInt(document.getElementById('clicks').innerHTML);
+		document.getElementById('clicks').innerHTML=clickCount + 1;
+		
+		// work out average clicks per second total average
+		var currTime = parseInt(document.getElementById('time').innerHTML)
+		var clickAveCPSTotal = parseInt(document.getElementById('clicks').innerHTML);
+		document.getElementById('totAveClicksPS').innerHTML=Math.round((clickCount / currTime)*10)/10; // time then divide by 10 to get 1 decimal place (javascript round() doesn't do it for you)
+		
+		// burst check
+		peakCPS();
+		
+		//set clicks in sec var
+		clicksInSec+=1;
+	}
+}
+-->
+</script>
+</head>
+<body>
+Time: <span id="time">0</span> | Clicks: <span id="clicks">0</span> | Clicks p/sec: <span id="lastCPS">0</span> | Total Ave Clicks p/sec: <span id="totAveClicksPS">0</span> | Clicks p/sec (peak): <span id="peakTotAveCPS">0</span> | 
+<br /><br /><br />
+<input type="button" id="clickMe" name="clickMe" style="width:1000px; height:700px;" value="click" />
+</body>
+</html>

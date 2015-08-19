@@ -1,0 +1,276 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<title>Mouse trainer</title>
+<style>
+body { margin:0; padding:0; }
+.yellow { background:#ff0 !important; }
+.orange { background:#ff9600 !important; }
+.red { background:#f00 !important; }
+</style>
+<script src="//ajax.googleapis.com/ajax/libs/jquery/2.0.0/jquery.min.js"></script>
+<script type="text/javascript">
+
+var running=true;
+var targetSize=0;
+var targetHits=0;
+var hitRatioRecord=0;
+var hsRatioRecord=0;
+var speed=0;
+
+function timer() {
+	//timer
+	var theTimer = self.setInterval(function() {
+
+		var timeLimit = 60; // game length, secs
+		var timer = parseInt(document.getElementById('time').innerHTML);
+		if(timer > (timeLimit-1)){ // stop after 30 secs, -1 secs cos of the extra time it will loop...
+			clearInterval(theTimer);
+			// disable clicker
+			running = false;
+		} else {
+			// increment timer
+			document.getElementById('time').innerHTML=timer + 1;
+		}
+	}, 1000);
+}
+
+// get records in JSON format from text file, will need to use ajax and php
+function getRecords() {
+
+	// need to check if any records have been beaten
+	// global vars already set
+	postData="game=mouse-trainer";
+	$.ajax({
+		type: "POST",
+		dataType: "json",
+		data: postData,
+		url: 'get-records.php',
+		success: function(data) {
+			hitRatioRecord = data.hitRatio;
+			hsRatioRecord = data.hsRatio;
+			$('#records').html('Records (fast mode only) - Hit ratio: '+hitRatioRecord+' | Headshot ratio: '+hsRatioRecord);
+		}
+	});
+
+}
+
+// store records in JSON format in text file, will need to use ajax and php
+function storeRecords(hitRatio,hsRatio) {
+
+	hitRatio = parseInt($('#hitRatio').html());
+	hsRatio = parseInt($('#hsRatio').html());
+
+	// check if any records have been beaten, nit arse-about-face but it'll do the job I think
+	if(hitRatioRecord>hitRatio){
+		hitRatio=hitRatioRecord;
+	}
+	if(hsRatioRecord>hsRatio){
+		hsRatio=hsRatioRecord;
+	}
+
+	postData="game=mouse-trainer&hitRatio="+hitRatio+"&hsRatio="+hsRatio;
+
+	$.ajax({
+		type: "POST",
+		data: postData,
+		url: 'store-records.php',
+		success: function(data) {
+			// 'data' is a JSON object which we can access directly.
+			// Evaluate the data.success member and do something appropriate...
+			/*if (data.success == true){
+				$('#section1').html(data.message);
+			} else {
+				$('#section2').html(data.message);
+			}*/
+		}
+	});
+
+}
+
+function calcHitRatio() {
+
+	// ratio = targets/hits
+	var hitRatio = Math.round((parseInt($('#hits').html())/parseInt($('#targets').html()))*100);
+	$('#hitRatio').html(hitRatio);
+
+}
+
+function calcHeadShotRatio() {
+
+	$('#hsRatio').html(Math.round((parseInt($('#headshots').html())/parseInt($('#hits').html()))*100));
+
+}
+
+// handles all target animation
+function animateTarget(atTarget,atLeft,atTop,atDur) {
+
+	$(atTarget).animate({
+		left:atLeft,
+		top:atTop,
+	},{
+		queue       : false, // interrupt current animation on this object
+		easing		: 'linear',
+		duration    : atDur,
+		step		: function( now, fx ){
+		},
+		complete    : function() {
+			// destroy target, if failed to hit
+			$('.target').remove();
+			// call ratio calc function
+			calcHitRatio();
+			generateTarget(atDur);
+		}
+	});
+}
+
+// generate target in area
+function generateTarget(chosenSpeed){
+
+	speed = chosenSpeed;
+
+	// out of time?
+	if(running === true) {
+
+		var targetSizeIncrease = 30; //pixels to add onto target size to set a minimum size
+
+		// set size (random but square and not too big/small)
+		targetSize = Math.floor(Math.random() * 30) + targetSizeIncrease; // range is 0-30 +20, so actual range is 20-50 (otherwise you'd have a chance of 0px width/height divs...)
+		var targetDistanceX = Math.floor(Math.random() * 60) + 20; // how far will it move on X axis? range is 0-60 +20, so actual range is 20-80 pixels
+		var targetDistanceY = Math.floor(Math.random() * 40); // how far will it move on Y axis? range is 0-60 pixels, as hoz movement more likely
+		// velocity (distance/time) (good clickable value seems to be 80pps (pixels per second))
+		// var targetVel = Math.floor(Math.random() * 10)+70; // range is 0-10 +70, so actual range is 70-80 (otherwise you'd have a chance of 0pps velocity...)
+		// var targetTime = (((targetDistanceX+targetDistanceY)/2)/targetVel)*600; // how long will it move for? average of the 2
+		var targetTime = speed; //1250; // how long will it move for? set to 1.25sec for now
+		var targetInitialXPos = Math.floor(Math.random() * 1100) + 200; // arena size is 1500px at the mo, +200 range is to stop it going over the edge, top and bottom
+		var targetInitialYPos = Math.floor(Math.random() * 450) + 200;
+		var targetInitialXdir = Math.floor(Math.random() * 2); // will generate 1 or 2 which can be translated into = or -
+		var targetInitialYdir = Math.floor(Math.random() * 2); // will generate 1 or 2 which can be translated into = or -
+		if(targetInitialXdir == 1) { targetInitialXdir = '+='+targetDistanceX; } else { targetInitialXdir = '-='+targetDistanceX; }
+		if(targetInitialYdir == 1) { targetInitialYdir = '+='+targetDistanceY; } else { targetInitialYdir = '-='+targetDistanceY; }
+
+		// create target
+		//define, width, height, start position top/left
+		$('#area').append('<a class="target" data-dir-x="'+targetInitialXdir+'" data-dir-y="'+targetInitialYdir+'" data-hits="" style="background:#00c713; position: absolute; left:'+targetInitialXPos+'px; top:'+targetInitialYPos+'px; height:'+targetSize+'px; width:'+targetSize/2+'px;"></a>');
+
+		//only animate if we want it to
+		if(targetTime>0){
+			animateTarget('.target',targetInitialXdir,targetInitialYdir,targetTime);
+		}
+
+		//var data = 'targetSize: '+targetSize+ ' | targetTime: '+targetTime+' | targetInitialXdir: '+targetInitialXdir+' | targetInitialYdir: '+targetInitialYdir;
+		//$('#pps').val(data);
+
+		var currentTargets = parseInt($('#targets').html())+1;
+		$('#targets').html(currentTargets);
+
+	} else {
+		$('#area').html('<h1>FINISHED</h1>');
+
+		// store records for fast mode only
+		if(speed==1250) {
+			storeRecords();
+		}
+	}
+
+}
+
+
+$(document).ready(function(){
+
+	// hit target
+	$('#area').delegate('a', 'click', function(e) {
+
+		// number of times to hit target
+		var targetHitDeath = 1;
+
+		// boom headshot? if in top 20% of target
+		headShotSize = targetSize*0.20;
+		var hitY = e.pageY - $(this).position().top;
+		var headshot = false;
+		if(hitY<=headShotSize) {
+			headshot = true;
+			headShots=parseInt($('#headshots').html());
+			$('#headshots').html(headShots+1);
+			targetHits = targetHitDeath; // dead target
+		} else {
+			targetHits+=1; // hurt target
+			if(targetHits==1){
+				$(this).addClass('yellow');
+			} else if (targetHits==2){
+				$(this).addClass('orange');
+			}
+		}
+
+		// target dies if hit 'targetHitDeath' number of times
+		if(targetHits >= targetHitDeath){
+			var currentHits = parseInt($('#hits').html())+1;
+			$('#hits').html(currentHits);
+			if(headshot === true) {
+				$(this).addClass('red');
+			} else {
+				$(this).addClass('orange');
+			}
+			$(this).stop(); // bugs if removed....
+
+			// death animation
+			$(this).animate({
+				opacity: 0,
+				height: '-=50',
+				width: '-=50',
+				left: '+=25',
+				top: '+=25'
+			},{
+				queue       : false,
+				duration    : 200,
+				complete    : function() {
+				// destroy target
+				$(this).remove();
+				// call ratio calc function
+				calcHitRatio();
+				calcHeadShotRatio();
+				generateTarget(speed);
+				targetHits=0; // reset target score
+			}});
+		}
+
+	});
+
+	$('#stationary').click(function() {
+		$('.controls').hide();
+		generateTarget(0);
+		timer();
+	});
+
+	$('#slow').click(function() {
+		$('.controls').hide();
+		generateTarget(2500);
+		timer();
+	});
+
+	$('#fast').click(function() {
+		$('.controls').hide();
+		generateTarget(1250); // if you change this, change line:172ish to match ( 'if(speed==1250) {' )
+		timer();
+	});
+
+	getRecords();
+
+});
+
+</script>
+</head>
+<body>
+<div id="area" style="border:1px solid #aaa; width:1500px; height:850px; position:relative; cursor:crosshair;"></div>
+Time: <span id="time">0</span> | Targets: <span id="targets">0</span> | Hits: <span id="hits">0</span> | Hit ratio: <span id="hitRatio">0</span>% | Headshots: <span id="headshots">0</span> | Headshot ratio: <span id="hsRatio">0</span>%<br />
+<span id="records"></span><br />
+<em>Note: Could do with working out click lag, e.g. position of cursor when clicking vs position of box?</em>
+<div class="controls" style="position:absolute;top:400px;left:500px;" />
+	Choose<br />
+	<input type="button" name="stationary" id="stationary" value="stationary" />
+	<input type="button" name="slow" id="slow" value="slow" />
+	<input type="button" name="fast" id="fast" value="fast" />
+</div>
+</body>
+</html>
