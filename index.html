@@ -204,21 +204,23 @@ $(document).ready(function(){
 		}
 
 		// target dies if hit 'targetHitDeath' number of times
-		if(targetHits >= targetHitDeath){
+		if(targetHits >= targetHitDeath) {
 			var currentHits = parseInt($('#hits').html())+1;
 			$('#hits').html(currentHits);
 			if(headshot === true) {
 				$(this).addClass('red');
+				deathAnim = '+=50'
 			} else {
 				$(this).addClass('orange');
+				deathAnim = '-=50'
 			}
 			$(this).stop(); // bugs if removed....
 
 			// death animation
 			$(this).animate({
 				opacity: 0,
-				height: '-=50',
-				width: '-=50',
+				height: deathAnim,
+				width: deathAnim,
 				left: '+=25',
 				top: '+=25'
 			},{
